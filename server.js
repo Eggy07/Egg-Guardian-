@@ -1,10 +1,8 @@
-// server.js
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
-const { spawn } = require('child_process');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -236,67 +234,6 @@ app.post('/history', (req, res) => {
     }
   );
 });
-
-// --- Live Video Feed ---
-let clients = [];
-app.get('/video_feed', (req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
-    'Cache-Control': 'no-cache',
-    'Connection': 'close',
-    'Pragma': 'no-cache',
-  });
-
-  clients.push(res);
-
-  req.on('close', () => {
-    clients = clients.filter((c) => c !== res);
-  });
-});
-
-// --- FFmpeg Stream Setup ---
-function startFFmpeg() {
-  let args;
-  if (process.platform === 'win32') {
-    args = ['-f', 'dshow', '-i', 'video=YOUR_CAMERA_NAME', '-vf', 'scale=640:480', '-f', 'mjpeg', '-q:v', '5', 'pipe:1'];
-  } else {
-    args = ['-f', 'video4linux2', '-i', '/dev/video0', '-vf', 'scale=640:480', '-f', 'mjpeg', '-q:v', '5', 'pipe:1'];
-  }
-
-  try {
-    const ffmpeg = spawn('ffmpeg', args);
-
-    ffmpeg.stdout.on('data', (data) => {
-      for (let res of clients) {
-        res.write(`--frame\r\n`);
-        res.write(`Content-Type: image/jpeg\r\n\r\n`);
-        res.write(data);
-        res.write(`\r\n`);
-      }
-    });
-
-    ffmpeg.stderr.on('data', (data) => {
-      console.error(`FFmpeg error: ${data}`);
-    });
-
-    ffmpeg.on('error', (err) => {
-      console.error('FFmpeg failed to start:', err.message);
-    });
-
-    ffmpeg.on('close', () => {
-      console.log('FFmpeg process closed');
-    });
-
-    return ffmpeg;
-  } catch (err) {
-    console.error('FFmpeg not installed or failed:', err.message);
-    return null;
-  }
-}
-
-// --- Start Streaming ---
-const ffmpegProcess = startFFmpeg();
-if (!ffmpegProcess) console.warn('FFmpeg is not available. /video_feed will not stream.');
 
 // --- Start Server ---
 app.listen(3000, '0.0.0.0', () => {
