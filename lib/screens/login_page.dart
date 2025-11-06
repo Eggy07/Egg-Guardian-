@@ -20,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> loginUser() async {
     setState(() => isLoading = true);
 
-    final url = Uri.parse('http://192.168.1.55:3000/login');
+    final url = Uri.parse('http://192.168.1.72:3000/login');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -94,8 +94,10 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     TextField(
                       controller: emailController,
+                      style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         labelText: 'Email',
+                        labelStyle: const TextStyle(color: Colors.black),
                         filled: true,
                         fillColor: const Color(0xFFFFF3CD),
                         border: OutlineInputBorder(
@@ -107,8 +109,10 @@ class _LoginPageState extends State<LoginPage> {
                     TextField(
                       controller: passwordController,
                       obscureText: true,
+                      style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         labelText: 'Password',
+                        labelStyle: const TextStyle(color: Colors.black),
                         filled: true,
                         fillColor: const Color(0xFFFFF3CD),
                         border: OutlineInputBorder(

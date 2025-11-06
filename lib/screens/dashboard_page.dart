@@ -17,7 +17,7 @@ class _DashboardPageState extends State<DashboardPage> {
   DateTime? _hatchingDay;
   bool _reminderEnabled = true;
   final List<Map<String, dynamic>> _notifications = [];
-  final String apiBase = 'http://192.168.1.55:3000';
+  final String apiBase = 'http://192.168.1.72:3000';
 
   @override
   void initState() {

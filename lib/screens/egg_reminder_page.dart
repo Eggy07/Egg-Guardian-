@@ -89,6 +89,14 @@ class _EggReminderPageState extends State<EggReminderPage> {
     if (picked != null) _saveDate(picked);
   }
 
+  // Calculate days left
+  int _daysLeft() {
+    if (_selectedDate == null) return 0;
+    final now = DateTime.now();
+    final difference = _selectedDate!.difference(now).inDays;
+    return difference >= 0 ? difference : 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,28 +115,7 @@ class _EggReminderPageState extends State<EggReminderPage> {
                   : 'Hatching Day: ${_selectedDate!.toLocal()}'.split(' ')[0],
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 40),
-
-            // Pick Hatching Day Button (bigger)
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton.icon(
-                onPressed: () => _pickDate(context),
-                icon: const Icon(Icons.calendar_today, size: 30),
-                label: const Text(
-                  'Pick Hatching Day',
-                  style: TextStyle(fontSize: 22),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFC400),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
             // Toggle Reminder On/Off
             Row(
@@ -142,10 +129,76 @@ class _EggReminderPageState extends State<EggReminderPage> {
                 Switch(
                   value: _reminderEnabled,
                   onChanged: (val) => _toggleReminder(val),
-                  activeThumbColor: Colors.orange, // <- updated
+                  activeThumbColor: Colors.orange,
                 ),
               ],
             ),
+
+            const SizedBox(height: 30),
+
+            // Countdown container
+            if (_selectedDate != null)
+              Column(
+                children: [
+                  Container(
+                    width: 150,
+                    height: 150,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.orange[200],
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFC400).withOpacity(0.5),
+                          offset: const Offset(0, 4),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _daysLeft() == 0 ? '0' : '${_daysLeft()}',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Days Left',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+
+            // Push the button down
+            const Spacer(),
+
+            // Pick Hatching Day Button
+            SizedBox(
+              width: double.infinity,
+              height: 60,
+              child: ElevatedButton.icon(
+                onPressed: () => _pickDate(context),
+                icon: const Icon(
+                  Icons.calendar_today,
+                  size: 30,
+                  color: Colors.black,
+                ),
+                label: const Text(
+                  'Pick Hatching Day',
+                  style: TextStyle(fontSize: 22, color: Colors.black),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC400),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16), // spacing from bottom
           ],
         ),
       ),

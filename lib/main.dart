@@ -5,7 +5,7 @@ import './screens/dashboard_page.dart';
 import './screens/settings_page.dart';
 import './screens/live_feed_page.dart';
 import './screens/egg_manager_page.dart';
-import './screens/login_page.dart';
+import './screens/splash.dart';
 
 void main() {
   runApp(const EggApp());
@@ -16,7 +16,6 @@ class EggApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap MaterialApp with ValueListenableBuilder to listen for theme changes
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.themeMode,
       builder: (context, themeMode, _) {
@@ -34,13 +33,14 @@ class EggApp extends StatelessWidget {
             scaffoldBackgroundColor: Colors.grey[900],
             fontFamily: 'Roboto',
             brightness: Brightness.dark,
-            colorScheme: ColorScheme.dark(
-              primary: const Color(0xFFFFC400),
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFFFC400),
               secondary: Colors.orangeAccent,
             ),
           ),
           themeMode: themeMode,
-          home: const LoginPage(), // Start at login page
+          home: const Splash(key: ValueKey('splash')), // Add a key
+          // ✅ Start with Splash Screen
         );
       },
     );
@@ -60,7 +60,6 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Move the pages list here to access widget.userId
     final List<Widget> pages = [
       DashboardPage(userId: widget.userId),
       const LiveFeedPage(),
@@ -71,15 +70,13 @@ class _MainPageState extends State<MainPage> {
 
     return Scaffold(
       body: pages[_currentIndex],
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFC400),
-          borderRadius: const BorderRadius.only(
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFC400),
+          borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
           ),
-          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
         ),
         child: BottomNavigationBar(
           backgroundColor: Colors.transparent,
@@ -91,7 +88,6 @@ class _MainPageState extends State<MainPage> {
           onTap: (index) => setState(() => _currentIndex = index),
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
-
             BottomNavigationBarItem(
               icon: Icon(Icons.remove_red_eye),
               label: 'Live Feed',

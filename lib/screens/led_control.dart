@@ -15,11 +15,10 @@ class _LedControlPageState extends State<LedControlPage> {
   List<bool> leds = List.filled(6, false);
   bool allOn = false;
 
-  // --- Raspberry Pi IP ---
-  final String baseUrl = 'http://192.168.1.101:5000/led';
-  final String baseAllUrl = 'http://192.168.1.101:5000/led/all';
+  final String baseUrl = 'http://192.168.1.73:5000/led';
+  final String baseAllUrl = 'http://192.168.1.73:5000/led/all';
 
-  // --- Toggle individual LED ---
+  // Toggle individual LED
   Future<void> toggleLed(int index, bool? newState) async {
     final state = newState ?? !leds[index];
     try {
@@ -32,11 +31,11 @@ class _LedControlPageState extends State<LedControlPage> {
         setState(() => leds[index] = state);
       }
     } catch (e) {
-      print('Error toggling LED $index: $e');
+      debugPrint('Error toggling LED $index: $e');
     }
   }
 
-  // --- Toggle all LEDs ---
+  // Toggle all LEDs
   Future<void> toggleAll() async {
     final newState = !allOn;
     try {
@@ -52,7 +51,7 @@ class _LedControlPageState extends State<LedControlPage> {
         });
       }
     } catch (e) {
-      print('Error toggling all LEDs: $e');
+      debugPrint('Error toggling all LEDs: $e');
     }
   }
 
@@ -61,31 +60,21 @@ class _LedControlPageState extends State<LedControlPage> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFC400),
+        title: const Text(
+          'LED Control',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context); // Proper back button
+          },
+        ),
+      ),
       body: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFC400),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Image.asset('assets/chick_icon.png', height: 35),
-                const Text(
-                  'LED Control',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 30),
-              ],
-            ),
-          ),
-
           const SizedBox(height: 20),
 
           // LED Control Card
@@ -129,7 +118,7 @@ class _LedControlPageState extends State<LedControlPage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // All LEDs button
+                    // All LEDs Button
                     ElevatedButton.icon(
                       icon: Icon(
                         allOn ? Icons.power_off : Icons.power,
@@ -149,7 +138,7 @@ class _LedControlPageState extends State<LedControlPage> {
 
                     const SizedBox(height: 25),
 
-                    // Individual LEDs
+                    // Individual LEDs Grid
                     Expanded(
                       child: GridView.builder(
                         padding: const EdgeInsets.all(20),
@@ -160,26 +149,44 @@ class _LedControlPageState extends State<LedControlPage> {
                               crossAxisSpacing: 10,
                             ),
                         itemCount: 6,
-                        itemBuilder: (context, i) => ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: leds[i]
-                                ? Colors.green[500]
-                                : Colors.grey[400],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                        itemBuilder: (context, i) {
+                          return ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: leds[i]
+                                  ? Colors.green[500]
+                                  : Colors.grey[400],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 4,
+                              padding: EdgeInsets.zero,
                             ),
-                            elevation: 4,
-                          ),
-                          onPressed: () => toggleLed(i, null),
-                          child: Text(
-                            'LED ${i + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                            onPressed: () => toggleLed(i, null),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 65,
+                                  height: 65,
+                                  child: Image.asset(
+                                    leds[i]
+                                        ? 'assets/LON.png'
+                                        : 'assets/LO.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                Text(
+                                  '${i + 1}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 24,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],

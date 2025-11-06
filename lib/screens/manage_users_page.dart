@@ -35,7 +35,7 @@ class ManageUsersPage extends StatefulWidget {
 class _ManageUsersPageState extends State<ManageUsersPage> {
   List<User> users = [];
   bool loading = true;
-  final String apiBase = 'http://192.168.1.55:3000';
+  final String apiBase = 'http://192.168.1.72:3000';
 
   @override
   void initState() {

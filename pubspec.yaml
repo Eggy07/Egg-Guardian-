@@ -61,6 +61,8 @@ flutter:
     - assets/non_fertile.png
     - assets/fertile.png
     - assets/google_logo.png
+    - assets/LO.png
+    - assets/LON.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

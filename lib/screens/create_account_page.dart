@@ -21,7 +21,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     setState(() => isLoading = true);
 
     try {
-      final url = Uri.parse('http://192.168.1.55:3000/register');
+      final url = Uri.parse('http://192.168.1.72:3000/register');
 
       final response = await http.post(
         url,

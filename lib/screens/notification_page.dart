@@ -14,7 +14,7 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   List<Map<String, dynamic>> notifications = [];
-  final String apiBase = 'http://192.168.1.55:3000';
+  final String apiBase = 'http://192.168.1.72:3000';
 
   @override
   void initState() {

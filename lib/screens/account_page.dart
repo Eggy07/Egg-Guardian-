@@ -21,7 +21,7 @@ class _AccountPageState extends State<AccountPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final String apiBase = 'http://192.168.1.55:3000';
+  final String apiBase = 'http://192.168.1.72:3000';
 
   Future<void> _pickImage() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);

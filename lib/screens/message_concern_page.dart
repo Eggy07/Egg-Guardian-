@@ -18,7 +18,7 @@ class _MessageConcernPageState extends State<MessageConcernPage> {
   final TextEditingController _messageController = TextEditingController();
 
   List<ConcernMessage> userMessages = [];
-  final String apiBase = 'http://192.168.1.55:3000'; // your backend IP
+  final String apiBase = 'http://192.168.1.72:3000'; // your backend IP
 
   // Fetch messages for this user
   Future<void> fetchMessages() async {

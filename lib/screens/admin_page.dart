@@ -23,15 +23,6 @@ class AdminPage extends StatelessWidget {
         child: Column(
           children: [
             _buildCard(
-              icon: Icons.analytics,
-              label: 'View Egg Logs',
-              onTap: () {
-                // TODO: Navigate to logs page
-              },
-            ),
-            const SizedBox(height: 20),
-
-            _buildCard(
               icon: Icons.message,
               label: 'Message Concerns',
               onTap: () {
@@ -41,15 +32,6 @@ class AdminPage extends StatelessWidget {
                     builder: (_) => const MessageConcernsAdminPage(),
                   ),
                 );
-              },
-            ),
-            const SizedBox(height: 20),
-
-            _buildCard(
-              icon: Icons.lightbulb,
-              label: 'Control Lights (All)',
-              onTap: () {
-                // TODO: Navigate to lights control page
               },
             ),
             const SizedBox(height: 20),
@@ -131,9 +113,15 @@ class AdminPage extends StatelessWidget {
           children: [
             Icon(icon, size: 30, color: Colors.black87),
             const SizedBox(width: 20),
-            Text(label, style: const TextStyle(fontSize: 18)),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.black, // <-- set label text to black
+              ),
+            ),
             const Spacer(),
-            const Icon(Icons.arrow_forward_ios, size: 16),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black),
           ],
         ),
       ),

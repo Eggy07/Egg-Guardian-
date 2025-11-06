@@ -13,7 +13,7 @@ class MessageConcernsAdminPage extends StatefulWidget {
 class _MessageConcernsAdminPageState extends State<MessageConcernsAdminPage> {
   List messages = [];
   final TextEditingController _responseController = TextEditingController();
-  final String baseUrl = "http://192.168.1.55:3000";
+  final String baseUrl = "http://192.168.1.72:3000";
 
   @override
   void initState() {
