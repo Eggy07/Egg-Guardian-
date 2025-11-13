@@ -1,1 +1,56 @@
-"build/" 
+echo "# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_01.log
+
+# Android
+android/.gradle/
+android/app/build/
+*.apk
+*.aab
+*.aar
+
+# iOS
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/build/
+
+# Linux/Mac/Windows builds
+linux/
+macos/
+windows/
+
+# IDE
+.idea/
+.vscode/
+" > .gitignore
+echo "# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_01.log
+
+# Android
+android/.gradle/
+android/app/build/
+*.apk
+*.aab
+*.aar
+
+# iOS
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/build/
+
+# Linux/Mac/Windows builds
+linux/
+macos/
+windows/
+
+# IDE
+.idea/
+.vscode/
+" > .gitignore
