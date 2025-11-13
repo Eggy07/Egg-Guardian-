@@ -1,0 +1,22 @@
+{
+  "name": "egg-guardian",
+  "version": "1.0.0",
+  "description": "Egg Guardian server backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.0",
+    "firebase-admin": "^13.6.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.9.7",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
