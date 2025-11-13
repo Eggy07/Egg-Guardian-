@@ -1,8 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:eggguardian_finalv/main.dart';
 import 'package:eggguardian_finalv/screens/admin_page.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'create_account_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -17,45 +16,54 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
   bool isLoading = false;
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   Future<void> loginUser() async {
     setState(() => isLoading = true);
 
-    final url = Uri.parse('http://192.168.1.72:3000/login');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': emailController.text.trim(),
-        'password': passwordController.text.trim(),
-      }),
-    );
+    try {
+      // Sign in with Firebase Auth
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      final user = userCredential.user;
+
+      if (user != null) {
+        // You can store role info in Firestore or Firebase custom claims
+        // For now, assume role 'admin' if email is admin@gmail.com
+        String role = user.email == 'admin@gmail.com' ? 'admin' : 'user';
+
+        if (!mounted) return;
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminPage()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => MainPage(userId: (user.uid))),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      String message = 'Login failed';
+      if (e.code == 'user-not-found') message = 'No user found for that email.';
+      if (e.code == 'wrong-password') message = 'Wrong password provided.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
 
     setState(() => isLoading = false);
-
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200 && data['success'] == true) {
-      if (!mounted) return;
-
-      final userId = data['user_id'];
-      final role = data['role'];
-      if (role == 'admin') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminPage()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => MainPage(userId: userId)),
-        );
-      }
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['error'] ?? 'Invalid email or password')),
-      );
-    }
   }
 
   @override
@@ -86,7 +94,14 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 30),
-              Image.asset('assets/chick_icon.png', height: 150),
+              SizedBox(
+                height: 300,
+                width: 300,
+                child: Image.asset(
+                  'assets/EG.png',
+                  fit: BoxFit.contain, // or BoxFit.fill if you want stretching
+                ),
+              ),
               const SizedBox(height: 30),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),

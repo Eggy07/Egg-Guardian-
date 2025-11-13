@@ -1,4 +1,5 @@
 import 'package:eggguardian_finalv/screens/led_control.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:eggguardian_finalv/screens/account_page.dart';
 import 'package:eggguardian_finalv/screens/login_page.dart';
@@ -7,7 +8,7 @@ import 'message_concern_page.dart';
 import '../screens/notification_page.dart';
 
 class SettingsPage extends StatelessWidget {
-  final int userId; // logged-in user ID
+  final String userId; // logged-in user ID
 
   const SettingsPage({super.key, required this.userId});
 
@@ -55,7 +56,8 @@ class SettingsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => NotificationPage(userId: userId),
+                  // NotificationPage uses FirebaseAuth internally, so call it without passing `userId` here.
+                  builder: (_) => const NotificationPage(),
                 ),
               );
             },
@@ -69,7 +71,9 @@ class SettingsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MessageConcernPage(userId: userId),
+                  builder: (_) => MessageConcernPage(
+                    userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                  ),
                 ),
               );
             },

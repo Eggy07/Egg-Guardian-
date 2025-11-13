@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class DashboardPage extends StatefulWidget {
-  final int userId;
+  final String userId;
 
   const DashboardPage({super.key, required this.userId});
 

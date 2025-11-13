@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'message_concern_page.dart'; // Import your message page
 
 class NotificationPage extends StatefulWidget {
-  final int userId;
-  const NotificationPage({super.key, required this.userId});
+  const NotificationPage({super.key});
 
   @override
   State<NotificationPage> createState() => _NotificationPageState();
@@ -15,6 +15,7 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState extends State<NotificationPage> {
   List<Map<String, dynamic>> notifications = [];
   final String apiBase = 'http://192.168.1.72:3000';
+  final User? user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
@@ -50,12 +51,12 @@ class _NotificationPageState extends State<NotificationPage> {
     }
   }
 
-  // Check admin replies
+  // Check admin replies for the logged-in user
   Future<void> _checkAdminReplies() async {
+    if (user == null) return; // No logged-in user
     try {
-      final res = await http.get(
-        Uri.parse('$apiBase/messages/${widget.userId}'),
-      );
+      final res = await http.get(Uri.parse('$apiBase/messages/${user!.uid}'));
+
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body);
 
@@ -81,11 +82,11 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 
   void _handleNotificationTap(Map<String, dynamic> notification) {
-    if (notification['type'] == 'admin_reply') {
+    if (notification['type'] == 'admin_reply' && user != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => MessageConcernPage(userId: widget.userId),
+          builder: (_) => MessageConcernPage(userId: user!.uid),
         ),
       );
     } else if (notification['type'] == 'hatching') {

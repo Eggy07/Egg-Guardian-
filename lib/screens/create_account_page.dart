@@ -1,7 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
 import 'login_page.dart';
 
 class CreateAccountPage extends StatefulWidget {
@@ -17,47 +16,64 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   final nameController = TextEditingController();
   bool isLoading = false;
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   Future<void> registerUser() async {
     setState(() => isLoading = true);
 
     try {
-      final url = Uri.parse('http://192.168.1.72:3000/register');
+      // Create user with Firebase Auth
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': nameController.text.trim(),
+      final user = userCredential.user;
+
+      if (user != null) {
+        // Update user display name
+        await user.updateDisplayName(nameController.text.trim());
+
+        // Store additional user info in Firestore
+        await _firestore.collection('user').doc(user.uid).set({
+          'full_name': nameController.text.trim(),
           'email': emailController.text.trim(),
-          'password': passwordController.text.trim(),
-        }),
-      );
+          'role': 'user', // Default role for new users
+          'created_at': FieldValue.serverTimestamp(),
+        });
 
-      final data = jsonDecode(response.body);
-      setState(() => isLoading = false);
-
-      if (response.statusCode == 200 && data['success'] == true) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created! Please log in.')),
         );
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LoginPage()),
         );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['error'] ?? 'Unknown error')),
-        );
       }
-    } catch (e) {
-      setState(() => isLoading = false);
+    } on FirebaseAuthException catch (e) {
+      String message = 'Registration failed';
+      if (e.code == 'email-already-in-use') {
+        message = 'Email is already in use.';
+      }
+      if (e.code == 'weak-password') {
+        message = 'Password should be at least 6 characters.';
+      }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error connecting to server')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+
+    setState(() => isLoading = false);
   }
 
   @override
@@ -94,10 +110,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               ),
 
               const SizedBox(height: 30),
-
-              // Logo
-              Center(child: Image.asset('assets/chick_icon.png', height: 150)),
-
+              SizedBox(
+                height: 300,
+                width: 300,
+                child: Image.asset(
+                  'assets/EG.png',
+                  fit: BoxFit.contain, // or BoxFit.fill if you want stretching
+                ),
+              ),
               const SizedBox(height: 30),
 
               // Input Form
@@ -105,6 +125,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Column(
                   children: [
+                    // Full name input
                     TextField(
                       controller: nameController,
                       decoration: InputDecoration(
@@ -117,6 +138,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    // Email input
                     TextField(
                       controller: emailController,
                       decoration: InputDecoration(
@@ -129,6 +151,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    // Password input
                     TextField(
                       controller: passwordController,
                       obscureText: true,
@@ -142,6 +165,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
                     const SizedBox(height: 30),
+                    // Loading button or regular button
                     isLoading
                         ? const CircularProgressIndicator()
                         : ElevatedButton(
@@ -165,6 +189,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             ),
                           ),
                     const SizedBox(height: 20),
+                    // Redirect to login page if user already has an account
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacement(

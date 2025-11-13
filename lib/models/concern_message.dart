@@ -1,5 +1,5 @@
 class ConcernMessage {
-  final int userId;
+  final String userId;
   final String userName;
   final String subject;
   final String message;

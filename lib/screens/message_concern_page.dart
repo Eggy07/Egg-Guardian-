@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../models/concern_message.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MessageConcernPage extends StatefulWidget {
-  final int userId;
+  final String userId;
 
   const MessageConcernPage({super.key, required this.userId});
 
@@ -17,73 +15,93 @@ class _MessageConcernPageState extends State<MessageConcernPage> {
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
 
-  List<ConcernMessage> userMessages = [];
-  final String apiBase = 'http://192.168.1.72:3000'; // your backend IP
+  final CollectionReference concernMessages = FirebaseFirestore.instance
+      .collection('concern_messages');
 
-  // Fetch messages for this user
-  Future<void> fetchMessages() async {
-    try {
-      final res = await http.get(
-        Uri.parse('$apiBase/messages/${widget.userId}'),
-      );
-      if (res.statusCode == 200) {
-        final List data = jsonDecode(res.body);
-        setState(() {
-          userMessages = data.map((m) {
-            return ConcernMessage(
-              userId: m['user_id'],
-              userName: m['username'] ?? 'User ${m['user_id']}',
-              subject: m['subject'],
-              message: m['message'],
-              adminResponse: m['admin_response'],
-            );
-          }).toList();
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching messages: $e');
-    }
-  }
+  List<Map<String, dynamic>> _localMessages = [];
 
-  // Send message to backend
+  /// Send message locally and to Firestore
   Future<void> _sendMessage() async {
     if (!_formKey.currentState!.validate()) return;
 
-    try {
-      final res = await http.post(
-        Uri.parse('$apiBase/messages'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': widget.userId,
-          'subject': _subjectController.text.trim(),
-          'message': _messageController.text.trim(),
-        }),
-      );
+    final now = DateTime.now();
+    final newMessage = {
+      'user_id': widget.userId,
+      'subject': _subjectController.text.trim(),
+      'message': _messageController.text.trim(),
+      'admin_response': null,
+      'created_at': FieldValue.serverTimestamp(),
+      'local_created_at': now,
+    };
 
-      if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Message sent successfully!')),
-        );
-        _subjectController.clear();
-        _messageController.clear();
-        fetchMessages(); // refresh
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to send message')));
-      }
+    // Show immediately
+    setState(() {
+      _localMessages.insert(0, newMessage);
+    });
+
+    _subjectController.clear();
+    _messageController.clear();
+
+    try {
+      await concernMessages.add(newMessage);
     } catch (e) {
       debugPrint('Error sending message: $e');
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Server connection error')));
+      ).showSnackBar(const SnackBar(content: Text('Error sending message')));
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    fetchMessages();
+  Widget _buildMessageCard(Map<String, dynamic> msg) {
+    final subject = msg['subject'] ?? 'No Subject';
+    final message = msg['message'] ?? '';
+    final adminResponse = msg['admin_response'] ?? '';
+    final dynamic createdAtField =
+        msg['created_at'] ?? msg['local_created_at'] ?? DateTime.now();
+
+    String formattedTime = '';
+    if (createdAtField is Timestamp) {
+      formattedTime = createdAtField.toDate().toLocal().toString();
+    } else if (createdAtField is DateTime) {
+      formattedTime = createdAtField.toLocal().toString();
+    } else {
+      formattedTime = createdAtField.toString();
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: const Color(0xFFFFECB3),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(subject, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(message),
+            if (adminResponse.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Admin: $adminResponse',
+                  style: const TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text(
+                formattedTime,
+                style: const TextStyle(fontSize: 10, color: Colors.black54),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -95,52 +113,49 @@ class _MessageConcernPageState extends State<MessageConcernPage> {
       ),
       body: Column(
         children: [
-          // Messages list
           Expanded(
-            child: userMessages.isEmpty
-                ? const Center(child: Text('No messages yet'))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: userMessages.length,
-                    itemBuilder: (context, index) {
-                      final msg = userMessages[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        color: const Color(0xFFFFECB3),
-                        child: ListTile(
-                          title: Text(
-                            msg.subject,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(msg.message),
-                              if (msg.adminResponse != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    'Admin: ${msg.adminResponse}',
-                                    style: const TextStyle(
-                                      fontStyle: FontStyle.italic,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+            child: StreamBuilder<QuerySnapshot>(
+              stream: concernMessages
+                  .orderBy('created_at', descending: true)
+                  .snapshots(includeMetadataChanges: true),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final serverMessages =
+                    snapshot.data?.docs
+                        .map((e) => e.data() as Map<String, dynamic>)
+                        .where((msg) => msg['user_id'] == widget.userId)
+                        .toList() ??
+                    [];
+
+                // Merge local + server messages, prioritize server for admin_response
+                final mergedMessages = [
+                  ...serverMessages,
+                  ..._localMessages.where(
+                    (lMsg) => !serverMessages.any(
+                      (sMsg) =>
+                          sMsg['message'] == lMsg['message'] &&
+                          sMsg['subject'] == lMsg['subject'],
+                    ),
                   ),
+                ];
+
+                if (mergedMessages.isEmpty) {
+                  return const Center(child: Text('No messages yet'));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: mergedMessages.length,
+                  itemBuilder: (context, index) =>
+                      _buildMessageCard(mergedMessages[index]),
+                );
+              },
+            ),
           ),
-
           const Divider(height: 1, color: Colors.grey),
-
-          // Send form
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Form(

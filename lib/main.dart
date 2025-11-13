@@ -6,8 +6,12 @@ import './screens/settings_page.dart';
 import './screens/live_feed_page.dart';
 import './screens/egg_manager_page.dart';
 import './screens/splash.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const EggApp());
 }
 
@@ -39,16 +43,17 @@ class EggApp extends StatelessWidget {
             ),
           ),
           themeMode: themeMode,
-          home: const Splash(key: ValueKey('splash')), // Add a key
-          // ✅ Start with Splash Screen
+          home: const Splash(key: ValueKey('splash')),
         );
       },
     );
   }
 }
 
+// -------------------- MainPage --------------------
+
 class MainPage extends StatefulWidget {
-  final int userId;
+  final String userId; // Keep as String
   const MainPage({super.key, required this.userId});
 
   @override
@@ -61,11 +66,11 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      DashboardPage(userId: widget.userId),
-      const LiveFeedPage(),
+      DashboardPage(userId: widget.userId), // Pass string
+      LiveFeedPage(),
       const EggManagerPage(),
       const EggReminderPage(),
-      SettingsPage(userId: widget.userId),
+      SettingsPage(userId: widget.userId), // Pass string
     ];
 
     return Scaffold(

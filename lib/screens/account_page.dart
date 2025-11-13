@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountPage extends StatefulWidget {
-  final int userId; // Pass from login
+  final String userId; // Firestore "user_id" field
   const AccountPage({super.key, required this.userId});
 
   @override
@@ -21,8 +21,19 @@ class _AccountPageState extends State<AccountPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final String apiBase = 'http://192.168.1.72:3000';
+  final CollectionReference usersCollection = FirebaseFirestore.instance
+      .collection('users');
 
+  String? _currentDocId; // Store actual Firestore document ID
+  String? _profileImageUrl; // Store Firestore image URL
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  /// Pick image from gallery
   Future<void> _pickImage() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -32,90 +43,88 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
+  /// Fetch user data from Firestore
   Future<void> _fetchUserData() async {
     try {
-      final response = await http.get(
-        Uri.parse('$apiBase/user/${widget.userId}'),
-      );
+      final querySnapshot = await usersCollection
+          .where('user_id', isEqualTo: widget.userId)
+          .limit(1)
+          .get();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (!mounted) return;
-        setState(() {
-          usernameController.text = data['username'] ?? '';
-          emailController.text = data['email'] ?? '';
-          passwordController.text = '';
-          isLoading = false;
-        });
-      } else {
+      if (querySnapshot.docs.isEmpty) {
         if (!mounted) return;
         setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load user: ${response.statusCode}'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('User not found')));
+        return;
       }
+
+      // Get document and data
+      final doc = querySnapshot.docs.first;
+      final data = doc.data() as Map<String, dynamic>;
+
+      if (!mounted) return;
+      setState(() {
+        _currentDocId = doc.id; // store actual doc ID for updates
+        usernameController.text = data['username'] ?? '';
+        emailController.text = data['email'] ?? '';
+        passwordController.text = '';
+        _profileImageUrl = data['profile_image_url'];
+        isLoading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => isLoading = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error fetching user data: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error fetching user: $e')));
     }
   }
 
-  // Update user data including image upload
+  /// Update user data in Firestore + upload image to Firebase Storage
   Future<void> _updateUserData() async {
-    try {
-      var request = http.MultipartRequest(
-        'PUT',
-        Uri.parse('$apiBase/user/${widget.userId}'),
-      );
-      request.fields['username'] = usernameController.text.trim();
-      request.fields['email'] = emailController.text.trim();
+    if (_currentDocId == null) return;
 
+    setState(() => isLoading = true);
+
+    try {
+      String? imageUrl = _profileImageUrl;
+
+      // Upload new image if picked
       if (_image != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('profile_image', _image!.path),
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'profile_images/${widget.userId}_${DateTime.now().millisecondsSinceEpoch}',
         );
+        final uploadTask = await storageRef.putFile(_image!);
+        imageUrl = await uploadTask.ref.getDownloadURL();
       }
 
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      final updateData = {
+        'username': usernameController.text.trim(),
+        'email': emailController.text.trim(),
+        if (imageUrl != null) 'profile_image_url': imageUrl,
+      };
+
+      await usersCollection.doc(_currentDocId).update(updateData);
 
       if (!mounted) return;
+      setState(() {
+        _profileImageUrl = imageUrl;
+        isLoading = false;
+        _image = null;
+      });
 
-      // Check if response is JSON
-      try {
-        final data = jsonDecode(response.body);
-        if (response.statusCode == 200 && data['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully!')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Update failed: ${data['error'] ?? ''}')),
-          );
-        }
-      } catch (_) {
-        // If not JSON, show raw response
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Server response: ${response.body}')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!')),
+      );
     } catch (e) {
       if (!mounted) return;
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error updating user: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error updating profile: $e')));
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserData();
   }
 
   @override
@@ -141,8 +150,11 @@ class _AccountPageState extends State<AccountPage> {
                         backgroundColor: const Color(0xFFFFF3CD),
                         backgroundImage: _image != null
                             ? FileImage(_image!)
-                            : null,
-                        child: _image == null
+                            : (_profileImageUrl != null
+                                      ? NetworkImage(_profileImageUrl!)
+                                      : null)
+                                  as ImageProvider<Object>?,
+                        child: (_image == null && _profileImageUrl == null)
                             ? const Icon(
                                 Icons.person,
                                 size: 70,
