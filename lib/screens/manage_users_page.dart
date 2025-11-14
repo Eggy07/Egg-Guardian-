@@ -1,29 +1,5 @@
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
-class User {
-  int id;
-  String username;
-  String email;
-  String role;
-
-  User({
-    required this.id,
-    required this.username,
-    required this.email,
-    required this.role,
-  });
-
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['user_id'],
-      username: json['username'],
-      email: json['email'],
-      role: json['role'] ?? 'user', // default to 'user'
-    );
-  }
-}
 
 class ManageUsersPage extends StatefulWidget {
   const ManageUsersPage({super.key});
@@ -33,57 +9,18 @@ class ManageUsersPage extends StatefulWidget {
 }
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
-  List<User> users = [];
-  bool loading = true;
-  final String apiBase = 'http://192.168.1.72:3000';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  @override
-  void initState() {
-    super.initState();
-    fetchUsers();
-  }
-
-  Future<void> fetchUsers() async {
-    setState(() => loading = true);
+  Future<void> updateRole(String uid, String newRole) async {
     try {
-      final response = await http.get(Uri.parse('$apiBase/user'));
-      if (response.statusCode == 200) {
-        final List data = json.decode(response.body);
-        users = data.map((e) => User.fromJson(e)).toList();
-      } else {
-        throw Exception('Failed to fetch users');
-      }
+      await _firestore.collection('user').doc(uid).update({'role': newRole});
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('User role updated to $newRole')));
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-    setState(() => loading = false);
-  }
-
-  Future<void> updateRole(User user, String newRole) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$apiBase/user/${user.id}'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'username': user.username,
-          'email': user.email,
-          'role': newRole,
-        }),
-      );
-      if (response.statusCode == 200) {
-        setState(() => user.role = newRole);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('${user.username} updated')));
-      } else {
-        throw Exception('Failed to update');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error updating user: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error updating role: $e')));
     }
   }
 
@@ -94,33 +31,61 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
         title: const Text('Manage Users'),
         backgroundColor: const Color(0xFFFFC400),
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: fetchUsers,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: users.length,
-                separatorBuilder: (_, __) => const Divider(),
-                itemBuilder: (context, index) {
-                  final user = users[index];
-                  return ListTile(
-                    title: Text(user.username),
-                    subtitle: Text(user.email),
-                    trailing: DropdownButton<String>(
-                      value: user.role,
-                      items: const [
-                        DropdownMenuItem(value: 'user', child: Text('User')),
-                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) updateRole(user, val);
-                      },
-                    ),
-                  );
-                },
-              ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore.collection('user').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final docs = snapshot.data!.docs;
+
+          if (docs.isEmpty) {
+            return const Center(child: Text('No users found.'));
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              // Firestore snapshots update automatically, so just wait a moment
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final uid = doc.id;
+                final email = doc['email'] ?? 'No Email';
+                final fullName = doc['full_name'] ?? 'No Name';
+                final roleRaw = (doc['role'] ?? 'user')
+                    .toString()
+                    .toLowerCase();
+                final role = roleRaw == 'admin' ? 'admin' : 'user';
+
+                return ListTile(
+                  title: Text(fullName),
+                  subtitle: Text(email),
+                  trailing: DropdownButton<String>(
+                    value: role,
+                    items: const [
+                      DropdownMenuItem(value: 'user', child: Text('User')),
+                      DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) updateRole(uid, val);
+                    },
+                  ),
+                );
+              },
             ),
+          );
+        },
+      ),
     );
   }
 }

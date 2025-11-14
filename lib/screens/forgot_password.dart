@@ -1,60 +1,50 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:eggguardian_finalv/main.dart';
-import 'package:eggguardian_finalv/screens/admin_page.dart';
 import 'package:flutter/material.dart';
-import 'create_account_page.dart';
-import 'forgot_password.dart'; // Import your forgot password page
+import 'login_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class ForgotPasswordPage extends StatefulWidget {
+  const ForgotPasswordPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final emailController = TextEditingController();
-  final passwordController = TextEditingController();
   bool isLoading = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<void> loginUser() async {
+  Future<void> resetPassword() async {
+    if (emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter your email')));
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
-      // Sign in with Firebase Auth
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+      await _auth.sendPasswordResetEmail(email: emailController.text.trim());
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent! Check your inbox.'),
+        ),
       );
 
-      final user = userCredential.user;
-
-      if (user != null) {
-        // Determine role
-        String role = user.email == 'admin@gmail.com' ? 'admin' : 'user';
-
-        if (!mounted) return;
-
-        if (role == 'admin') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const AdminPage()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => MainPage(userId: user.uid)),
-          );
-        }
-      }
+      // Navigate back to login page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
-      String message = 'Login failed';
+      String message = 'Failed to send reset email';
       if (e.code == 'user-not-found') message = 'No user found for that email.';
-      if (e.code == 'wrong-password') message = 'Wrong password provided.';
 
       ScaffoldMessenger.of(
         context,
@@ -65,15 +55,14 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
-
-    setState(() => isLoading = false);
   }
 
   @override
   void dispose() {
     emailController.dispose();
-    passwordController.dispose();
     super.dispose();
   }
 
@@ -99,16 +88,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 child: const Center(
                   child: Text(
-                    'LOGIN',
+                    'RESET PASSWORD',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                height: 300,
-                width: 300,
-                child: Image.asset('assets/EG.png', fit: BoxFit.contain),
               ),
               const SizedBox(height: 30),
               Padding(
@@ -128,56 +111,23 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: true,
-                      style: const TextStyle(color: Colors.black),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        labelStyle: const TextStyle(color: Colors.black),
-                        filled: true,
-                        fillColor: const Color(0xFFFFF3CD),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ForgotPasswordPage(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 30),
                     isLoading
                         ? const CircularProgressIndicator()
                         : ElevatedButton(
-                            onPressed: loginUser,
+                            onPressed: resetPassword,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFFC400),
                               padding: const EdgeInsets.symmetric(
                                 vertical: 14,
-                                horizontal: 80,
+                                horizontal: 60,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
                             child: const Text(
-                              'Login',
+                              'Send Reset Email',
                               style: TextStyle(
                                 fontSize: 18,
                                 color: Colors.black,
@@ -189,12 +139,10 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const CreateAccountPage(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
                         );
                       },
-                      child: const Text("Don't have an account? Sign up"),
+                      child: const Text("Back to Login"),
                     ),
                   ],
                 ),
