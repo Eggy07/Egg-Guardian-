@@ -1,11 +1,16 @@
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AccountPage extends StatefulWidget {
-  final String userId; // Firestore "user_id" field
+  final String userId; // Document ID in Firestore
+
   const AccountPage({super.key, required this.userId});
 
   @override
@@ -13,19 +18,18 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  File? _image;
-  final picker = ImagePicker();
+  File? _image; // Mobile image
+  Uint8List? _webImage; // Web image
   bool isLoading = true;
 
   final usernameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final CollectionReference usersCollection = FirebaseFirestore.instance
-      .collection('users');
+  String? _profileImageUrl;
 
-  String? _currentDocId; // Store actual Firestore document ID
-  String? _profileImageUrl; // Store Firestore image URL
+  final CollectionReference usersCollection = FirebaseFirestore.instance
+      .collection('user');
 
   @override
   void initState() {
@@ -33,26 +37,12 @@ class _AccountPageState extends State<AccountPage> {
     _fetchUserData();
   }
 
-  /// Pick image from gallery
-  Future<void> _pickImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
-    }
-  }
-
-  /// Fetch user data from Firestore
+  /// ---- FETCH USER DATA ----
   Future<void> _fetchUserData() async {
     try {
-      final querySnapshot = await usersCollection
-          .where('user_id', isEqualTo: widget.userId)
-          .limit(1)
-          .get();
+      final docSnapshot = await usersCollection.doc(widget.userId).get();
 
-      if (querySnapshot.docs.isEmpty) {
-        if (!mounted) return;
+      if (!docSnapshot.exists) {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(
           context,
@@ -60,80 +50,125 @@ class _AccountPageState extends State<AccountPage> {
         return;
       }
 
-      // Get document and data
-      final doc = querySnapshot.docs.first;
-      final data = doc.data() as Map<String, dynamic>;
+      final data = docSnapshot.data() as Map<String, dynamic>;
 
-      if (!mounted) return;
       setState(() {
-        _currentDocId = doc.id; // store actual doc ID for updates
-        usernameController.text = data['username'] ?? '';
+        usernameController.text = data['full_name'] ?? '';
         emailController.text = data['email'] ?? '';
-        passwordController.text = '';
         _profileImageUrl = data['profile_image_url'];
         isLoading = false;
       });
+
+      debugPrint('User data fetched: ${data['full_name']}');
     } catch (e) {
-      if (!mounted) return;
       setState(() => isLoading = false);
+      debugPrint('Error fetching user data: $e');
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error fetching user: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  /// Update user data in Firestore + upload image to Firebase Storage
-  Future<void> _updateUserData() async {
-    if (_currentDocId == null) return;
+  /// ---- PICK IMAGE ----
+  Future<void> _pickImage() async {
+    if (!kIsWeb) {
+      final status = await Permission.photos.request();
+      if (!status.isGranted) {
+        debugPrint('Permission denied');
+        return;
+      }
+    }
 
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+
+    if (pickedFile != null) {
+      if (kIsWeb) {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _webImage = bytes;
+          _image = null;
+        });
+        debugPrint('Web image selected: ${bytes.length} bytes');
+      } else {
+        setState(() {
+          _image = File(pickedFile.path);
+          _webImage = null;
+        });
+        debugPrint('Mobile image selected: ${pickedFile.path}');
+      }
+    }
+  }
+
+  /// ---- UPDATE USER DATA ----
+  Future<void> _updateUserData() async {
     setState(() => isLoading = true);
 
     try {
       String? imageUrl = _profileImageUrl;
 
-      // Upload new image if picked
-      if (_image != null) {
+      // Upload image if selected
+      if ((_image != null && !kIsWeb) || (_webImage != null && kIsWeb)) {
         final storageRef = FirebaseStorage.instance.ref().child(
-          'profile_images/${widget.userId}_${DateTime.now().millisecondsSinceEpoch}',
+          'profile_images/${widget.userId}.jpg',
         );
-        final uploadTask = await storageRef.putFile(_image!);
-        imageUrl = await uploadTask.ref.getDownloadURL();
+
+        UploadTask uploadTask;
+        final metadata = SettableMetadata(contentType: 'image/jpeg');
+
+        if (kIsWeb && _webImage != null) {
+          uploadTask = storageRef.putData(_webImage!, metadata);
+        } else if (!kIsWeb && _image != null) {
+          uploadTask = storageRef.putFile(_image!, metadata);
+        } else {
+          throw Exception('No image data to upload');
+        }
+
+        final snapshot = await uploadTask;
+        imageUrl = await snapshot.ref.getDownloadURL();
+        debugPrint('Image uploaded: $imageUrl');
       }
 
-      final updateData = {
-        'username': usernameController.text.trim(),
+      // Update Firestore
+      await usersCollection.doc(widget.userId).update({
+        'full_name': usernameController.text.trim(),
         'email': emailController.text.trim(),
-        if (imageUrl != null) 'profile_image_url': imageUrl,
-      };
+        'profile_image_url': imageUrl,
+      });
 
-      await usersCollection.doc(_currentDocId).update(updateData);
-
-      if (!mounted) return;
       setState(() {
-        _profileImageUrl = imageUrl;
-        isLoading = false;
+        // Force reload by appending timestamp
+        if (imageUrl != null) {
+          _profileImageUrl =
+              '$imageUrl?ts=${DateTime.now().millisecondsSinceEpoch}';
+        }
         _image = null;
+        _webImage = null;
+        isLoading = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
       );
-    } catch (e) {
-      if (!mounted) return;
+    } catch (e, st) {
       setState(() => isLoading = false);
+      debugPrint('Error updating profile: $e');
+      debugPrintStack(stackTrace: st);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error updating profile: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
+  /// ---- BUILD UI ----
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFC400),
         title: const Text('My Account'),
+        backgroundColor: const Color(0xFFFFC400),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -142,19 +177,25 @@ class _AccountPageState extends State<AccountPage> {
               child: Column(
                 children: [
                   const SizedBox(height: 30),
+
+                  /// ---- PROFILE IMAGE ----
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
                       CircleAvatar(
                         radius: 70,
                         backgroundColor: const Color(0xFFFFF3CD),
-                        backgroundImage: _image != null
+                        foregroundImage: _image != null
                             ? FileImage(_image!)
-                            : (_profileImageUrl != null
-                                      ? NetworkImage(_profileImageUrl!)
-                                      : null)
-                                  as ImageProvider<Object>?,
-                        child: (_image == null && _profileImageUrl == null)
+                            : (_webImage != null
+                                  ? MemoryImage(_webImage!)
+                                  : (_profileImageUrl != null
+                                        ? NetworkImage(_profileImageUrl!)
+                                        : null)),
+                        child:
+                            (_image == null &&
+                                _webImage == null &&
+                                _profileImageUrl == null)
                             ? const Icon(
                                 Icons.person,
                                 size: 70,
@@ -184,7 +225,10 @@ class _AccountPageState extends State<AccountPage> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 40),
+
+                  /// ---- USERNAME ----
                   TextField(
                     controller: usernameController,
                     decoration: InputDecoration(
@@ -197,6 +241,8 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  /// ---- EMAIL ----
                   TextField(
                     controller: emailController,
                     decoration: InputDecoration(
@@ -209,6 +255,8 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  /// ---- PASSWORD ----
                   TextField(
                     controller: passwordController,
                     obscureText: true,
@@ -221,7 +269,10 @@ class _AccountPageState extends State<AccountPage> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 30),
+
+                  /// ---- SAVE BUTTON ----
                   ElevatedButton(
                     onPressed: _updateUserData,
                     style: ElevatedButton.styleFrom(
