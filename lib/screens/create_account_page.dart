@@ -14,33 +14,60 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final nameController = TextEditingController();
+
   bool isLoading = false;
+  bool _showPassword = false;
+
+  // Password validation flags
+  bool hasUppercase = false;
+  bool hasNumber = false;
+  bool hasMinLength = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Validate password live
+  void validatePassword(String password) {
+    setState(() {
+      hasUppercase = password.contains(RegExp(r'[A-Z]'));
+      hasNumber = password.contains(RegExp(r'[0-9]'));
+      hasMinLength = password.length >= 6;
+    });
+  }
+
   Future<void> registerUser() async {
+    String pw = passwordController.text.trim();
+
+    // Local frontend password validation
+    if (!hasUppercase || !hasNumber || !hasMinLength) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Password must include: uppercase letter, number, and 6+ characters.",
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
-      // Create user with Firebase Auth
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(
             email: emailController.text.trim(),
-            password: passwordController.text.trim(),
+            password: pw,
           );
 
       final user = userCredential.user;
 
       if (user != null) {
-        // Update user display name
         await user.updateDisplayName(nameController.text.trim());
 
-        // Store additional user info in Firestore
         await _firestore.collection('user').doc(user.uid).set({
           'full_name': nameController.text.trim(),
           'email': emailController.text.trim(),
-          'role': 'user', // Default role for new users
+          'role': 'user',
           'created_at': FieldValue.serverTimestamp(),
         });
 
@@ -56,12 +83,11 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
       }
     } on FirebaseAuthException catch (e) {
       String message = 'Registration failed';
-      if (e.code == 'email-already-in-use') {
-        message = 'Email is already in use.';
-      }
+      if (e.code == 'email-already-in-use') message = 'Email already in use.';
       if (e.code == 'weak-password') {
-        message = 'Password should be at least 6 characters.';
+        message = 'Password is too weak.';
       }
+
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -84,7 +110,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Header
+              // HEADER
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -113,19 +139,16 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               SizedBox(
                 height: 300,
                 width: 300,
-                child: Image.asset(
-                  'assets/EG.png',
-                  fit: BoxFit.contain, // or BoxFit.fill if you want stretching
-                ),
+                child: Image.asset('assets/EG.png', fit: BoxFit.contain),
               ),
               const SizedBox(height: 30),
 
-              // Input Form
+              // INPUT FORM
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Column(
                   children: [
-                    // Full name input
+                    // FULL NAME
                     TextField(
                       controller: nameController,
                       decoration: InputDecoration(
@@ -138,7 +161,8 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // Email input
+
+                    // EMAIL
                     TextField(
                       controller: emailController,
                       decoration: InputDecoration(
@@ -151,10 +175,12 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // Password input
+
+                    // PASSWORD FIELD + SHOW PASS + VALIDATION
                     TextField(
                       controller: passwordController,
-                      obscureText: true,
+                      obscureText: !_showPassword,
+                      onChanged: validatePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
                         filled: true,
@@ -162,10 +188,54 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
+
+                        // Eye icon
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() => _showPassword = !_showPassword);
+                          },
+                        ),
                       ),
                     ),
+
+                    // PASSWORD RULES
+                    const SizedBox(height: 10),
+
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "• At least 6 characters",
+                          style: TextStyle(
+                            color: hasMinLength ? Colors.green : Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          "• Must include 1 uppercase letter",
+                          style: TextStyle(
+                            color: hasUppercase ? Colors.green : Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          "• Must include 1 number",
+                          style: TextStyle(
+                            color: hasNumber ? Colors.green : Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+
                     const SizedBox(height: 30),
-                    // Loading button or regular button
+
+                    // BUTTON
                     isLoading
                         ? const CircularProgressIndicator()
                         : ElevatedButton(
@@ -188,8 +258,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                               ),
                             ),
                           ),
+
                     const SizedBox(height: 20),
-                    // Redirect to login page if user already has an account
+
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacement(

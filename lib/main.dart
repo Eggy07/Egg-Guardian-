@@ -68,7 +68,7 @@ class _MainPageState extends State<MainPage> {
     final List<Widget> pages = [
       DashboardPage(userId: widget.userId), // Pass string
       LiveFeedPage(),
-      const EggManagerPage(),
+      const EggDetectionPage(),
       const EggReminderPage(),
       SettingsPage(userId: widget.userId), // Pass string
     ];

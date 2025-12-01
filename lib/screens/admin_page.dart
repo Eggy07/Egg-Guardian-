@@ -1,6 +1,6 @@
 import 'package:eggguardian_finalv/screens/manage_users_page.dart';
+import 'package:eggguardian_finalv/screens/message_concern_page.dart';
 import 'package:flutter/material.dart';
-import 'message_concern_admin_page.dart';
 import 'login_page.dart'; // Make sure this path is correct
 
 class AdminPage extends StatelessWidget {
@@ -29,7 +29,7 @@ class AdminPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const MessageConcernsAdminPage(),
+                    builder: (_) => const MessageConcernPage(userId: 'admin'),
                   ),
                 );
               },

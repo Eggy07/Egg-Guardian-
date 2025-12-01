@@ -34,7 +34,7 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.1
   permission_handler: ^11.0.1
-
+  mjpeg_stream: ^1.0.1
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -48,6 +48,7 @@ dependencies:
   flutter_lints: ^5.0.0
   video_player: ^2.10.1
   flutter_vlc_player: ^7.4.4
+  webview_flutter: ^4.13.0
 
 
 
@@ -77,6 +78,9 @@ flutter:
     - assets/chick_welcome.png
     - assets/non_fertile.png
     - assets/fertile.png
+    - assets/chick_icon.png
+    - assets/brokenlogo.png
+    - assets/fullegg.png
     - assets/google_logo.png
     - assets/LO.png
     - assets/LON.png

@@ -3,7 +3,7 @@ import 'package:eggguardian_finalv/main.dart';
 import 'package:eggguardian_finalv/screens/admin_page.dart';
 import 'package:flutter/material.dart';
 import 'create_account_page.dart';
-import 'forgot_password.dart'; // Import your forgot password page
+import 'forgot_password.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,13 +17,14 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
   bool isLoading = false;
 
+  bool _obscurePassword = true; 
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<void> loginUser() async {
     setState(() => isLoading = true);
 
     try {
-      // Sign in with Firebase Auth
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
@@ -32,7 +33,6 @@ class _LoginPageState extends State<LoginPage> {
       final user = userCredential.user;
 
       if (user != null) {
-        // Determine role
         String role = user.email == 'admin@gmail.com' ? 'admin' : 'user';
 
         if (!mounted) return;
@@ -129,9 +129,11 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // 🔐 PASSWORD FIELD WITH SHOW/HIDE BUTTON
                     TextField(
                       controller: passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         labelText: 'Password',
@@ -141,8 +143,22 @@ class _LoginPageState extends State<LoginPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
                     ),
+
                     const SizedBox(height: 10),
                     Align(
                       alignment: Alignment.centerRight,
@@ -162,6 +178,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+
                     isLoading
                         ? const CircularProgressIndicator()
                         : ElevatedButton(
@@ -184,7 +201,9 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                           ),
+
                     const SizedBox(height: 20),
+
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacement(

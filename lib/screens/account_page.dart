@@ -21,6 +21,7 @@ class _AccountPageState extends State<AccountPage> {
   File? _image; // Mobile image
   Uint8List? _webImage; // Web image
   bool isLoading = true;
+  bool _showPassword = false;
 
   final usernameController = TextEditingController();
   final emailController = TextEditingController();
@@ -72,15 +73,35 @@ class _AccountPageState extends State<AccountPage> {
   /// ---- PICK IMAGE ----
   Future<void> _pickImage() async {
     if (!kIsWeb) {
-      final status = await Permission.photos.request();
-      if (!status.isGranted) {
-        debugPrint('Permission denied');
-        return;
+      if (Platform.isAndroid) {
+        // For Android 13+ use READ_MEDIA_IMAGES
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permission to access gallery denied'),
+            ),
+          );
+          return;
+        }
+      } else if (Platform.isIOS) {
+        final status = await Permission.photos.request();
+        if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permission to access gallery denied'),
+            ),
+          );
+          return;
+        }
       }
     }
 
     final pickedFile = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
     );
 
     if (pickedFile != null) {
@@ -108,7 +129,6 @@ class _AccountPageState extends State<AccountPage> {
     try {
       String? imageUrl = _profileImageUrl;
 
-      // Upload image if selected
       if ((_image != null && !kIsWeb) || (_webImage != null && kIsWeb)) {
         final storageRef = FirebaseStorage.instance.ref().child(
           'profile_images/${widget.userId}.jpg',
@@ -130,7 +150,6 @@ class _AccountPageState extends State<AccountPage> {
         debugPrint('Image uploaded: $imageUrl');
       }
 
-      // Update Firestore
       await usersCollection.doc(widget.userId).update({
         'full_name': usernameController.text.trim(),
         'email': emailController.text.trim(),
@@ -138,7 +157,6 @@ class _AccountPageState extends State<AccountPage> {
       });
 
       setState(() {
-        // Force reload by appending timestamp
         if (imageUrl != null) {
           _profileImageUrl =
               '$imageUrl?ts=${DateTime.now().millisecondsSinceEpoch}';
@@ -259,13 +277,25 @@ class _AccountPageState extends State<AccountPage> {
                   /// ---- PASSWORD ----
                   TextField(
                     controller: passwordController,
-                    obscureText: true,
+                    obscureText: !_showPassword,
                     decoration: InputDecoration(
                       labelText: 'Password (unchanged)',
                       filled: true,
                       fillColor: const Color(0xFFFFF3CD),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _showPassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _showPassword = !_showPassword;
+                          });
+                        },
                       ),
                     ),
                   ),

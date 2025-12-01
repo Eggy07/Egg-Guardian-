@@ -45,7 +45,7 @@ android {
                 keyPassword = keystoreProperties["keyPassword"] as String
             } else {
                 // Option 2: fallback (direct values)
-                storeFile = file("C:/Users/Kent/Documents/GitHub/Egg-Guardian-/eggguardian-release.jks")
+                storeFile = file("C:/Users/Kent/Documents/GitHub/Egg-Guardian/eggguardian-release.jks")
                 storePassword = "admin1"
                 keyAlias = "eggguardian"
                 keyPassword = "admin1"
